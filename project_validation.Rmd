@@ -1,0 +1,264 @@
+---
+title: "project"
+author: "RawanGalal"
+date: "3/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r imports}
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(validate)
+library(janitor)
+
+```
+
+
+```{r}
+options(scipen = 50)
+spec_csv("Data.csv")
+
+```
+
+```{r read_file}
+data = read_csv("Data.csv")
+data
+```
+
+# Level 0: Format and file structure
+#### this is transactional data, in the long format
+
+```{r unique_rows}
+data %>% distinct()
+
+```
+
+#### :87,396 rows are distinct
+#### check duplicates. is there a pattern? 
+
+```{r duplicates_show}
+data %>% 
+#distinct(hotel, is_canceled, lead_time, arrival_date_year, arrival_date_month,  arrival_date_week_number, #arrival_date_day_of_month, stays_in_week_nights, stays_in_weekend_nights, adults, children, babies, meal, country, #market_segment, distribution_channel, is_repeated_guest) %>%
+ group_by(hotel, is_canceled, lead_time, arrival_date_year, arrival_date_month, arrival_date_week_number, arrival_date_day_of_month, stays_in_week_nights, stays_in_weekend_nights, adults, children, babies, meal, country, market_segment, distribution_channel, is_repeated_guest, previous_cancellations,previous_bookings_not_canceled,  reserved_room_type, assigned_room_type, booking_changes, deposit_type, agent, company, days_in_waiting_list, customer_type, adr, required_car_parking_spaces, total_of_special_requests, reservation_status, reservation_status_date) %>%
+  filter(n() >1) %>%
+  ungroup() %>%
+  arrange(hotel, is_canceled, lead_time, arrival_date_year, arrival_date_month, arrival_date_week_number, arrival_date_day_of_month, stays_in_week_nights, stays_in_weekend_nights, adults, children, babies, meal, country, market_segment, distribution_channel, is_repeated_guest, previous_cancellations,previous_bookings_not_canceled,  reserved_room_type, assigned_room_type, booking_changes, deposit_type, agent, company, days_in_waiting_list, customer_type, adr, required_car_parking_spaces, total_of_special_requests, reservation_status, reservation_status_date)
+  
+ # data[!duplicated(data)]
+```
+
+
+#### conclusion; there are no duplicates; two people can book at the same hotel, through the same agent, arrvie at the same day...
+
+
+# ################################################
+# Level 1: cells
+## a) aggregate summary statistics
+```{r stats_numeric}
+data %>%
+  select(where(is.numeric)) %>%
+  summary()
+
+```
+
+#### worth investigation: 1. max. in lead_time; is it possible to book in a hotel before arriving with 2 years?
+#### 2. adults; 55 ????? It seems like booking the entire hotel not a room!
+#### 3. NA's in children>> see distribution
+#### 4. 10 babies????
+#### outliers: stays_in_weekend_nights,  stays_in_week_nights, children, previous_cancellations, 
+#### previous_bookings_not_canceled, booking_changes, days_in_waiting_list(more than 1 year in waiting list??), adr??
+#### required_car_parking_spaces?  
+
+### lead_time
+```{r lead_time_outliers}
+data %>% summarise(quantile(lead_time, 0.999999))
+
+
+```
+
+#### 99% of the data is less than 444
+#### let's dive deeper 
+```{r}
+data %>% 
+  filter( lead_time > 733)
+```
+
+```{r adults_outliers}
+data %>% summarise(quantile(adults, .9999))
+
+
+```
+
+```{r }
+data %>% 
+  filter(adults> 10) 
+```
+```{r na_children}
+data %>%
+  filter(is.na(children))
+```
+#### since there are only 4 rows, with no obvious pattern, I decided to keep these rows since the number of children won't affect the analysis (untill now)
+
+
+```{r babies_outliers}
+data %>%summarise(quantile(babies, .9999))
+
+```
+
+```{r}
+data %>%
+  filter(babies >2)
+
+```
+```{r stays_in_weekend_nights_Outliers}
+data %>%
+  summarise(quantile(stays_in_weekend_nights, 0.99))
+
+```
+```{r}
+data %>%
+  filter(stays_in_weekend_nights > 12)
+
+```
+#### this outlier doesn't indicate a data error; a person can stay any number of weekend nights. However, it does #### tell us that 99% of guests stayed only 4 weekend nights
+
+```{r children_outliers}
+data %>%summarise(quantile(children, .9999, na.rm = T))
+
+```
+```{r}
+data %>%
+  filter( children > 3)
+
+```
+
+#### only 1 row. Most propably, it's a data entry error. **But let's make sure from the business first.**
+
+```{r}
+
+data %>% 
+  summarise(quantile(previous_cancellations, .999))
+```
+
+```{r}
+data %>% filter(previous_cancellations >14) %>% distinct()
+
+```
+
+```{r}
+data %>% filter(previous_cancellations >14, is_repeated_guest ==0)
+
+```
+
+#### This is worth highliting. Having a high cancellation rate represents a threat to the business. 
+#### **FURTHER INVESTIGATIONS** need to be done to reveal any hidden patterns. For instance, could agents; 208, 252, 96, 1 relate to #### this event? country; PRT? Room type=A? **they are not repeated guests (except for 1)**
+#### most of them booked  ~ 200 days in advance.
+
+#### the same thinking approach applies to previous_bookings_not_canceled; there's an outlier of 72 which deserves more attention; were these bookings made throuhg a certain period of time? could I reveal patterns that helps me maximize the profit?
+
+```{r booking_changes_outliers}
+data %>%summarise(quantile(booking_changes, .9999))
+data
+```
+
+
+```{r}
+data %>% filter(booking_changes >14) %>% distinct()
+
+```
+
+```{r  days_in_waiting_list_Outliers}
+data %>% summarise(quantile ( days_in_waiting_list, 0.99))
+
+```
+```{r}
+data %>% 
+  filter( days_in_waiting_list >75)
+
+```
+
+```{r  adr_Outliers}
+data %>% summarise(quantile ( adr, 0.9999))
+
+```
+
+```{r}
+data %>% 
+  filter( adr > 388)
+
+```
+
+### b) frequency table of categorical columns
+```{r}
+tabyl(data$hotel)
+tabyl(data$arrival_date_month)
+tabyl(data$meal)
+tabyl(data$country)
+tabyl(data$market_segment)
+tabyl(data$distribution_channel)
+tabyl(data$reserved_room_type)
+tabyl(data$assigned_room_type)
+tabyl(data$deposit_type)
+tabyl(data$agent) %>% filter(n !=2)
+tabyl(data$company) %>% filter(n !=1)
+tabyl(data$customer_type)
+tabyl(data$reservation_status)
+```
+### - agent column
+#### there are 16340 nulls in the agent column. >> 13.7%
+```{r agent_nulls}
+
+data %>% group_by(agent) %>%
+  filter(n() ==16340)
+```
+#### 36% of the market segment with null agent are direct 
+#### 69.7% of company with null agent are alsoo null 
+#### 71.7% of customers with null agent are transient
+#### 75.3% of reservation_status with null agents are check-out
+
+
+### - company column
+#### 94% of the copmany column is null> **drop**
+
+### - reservation_status column
+#### 36% of reservations are cancelled!! this is a high rate and needs **further investigations**
+
+
+### Intuitively, behaviors will differ in a city hotel rather than a resort hotel.
+### so I'll separate them for future analysis
+```{r}
+data_city <- data %>% filter(hotel== "City Hotel")
+data_resort <- data %>% filter(hotel == "Resort Hotel")
+tabyl(data_city$arrival_date_month)
+tabyl(data_resort$arrival_date_month)
+#data_resort 
+```
+
+
+# #####################################################
+## rationality of each column
+```{r}
+data %>% mutate(year_val =  str_split(reservation_status_date,  "-")[0])
+
+
+```
+
+# ############################################################################
+# b) cross-column validations
+## 1b- date vs year/month/day
+**come back to it **
+
+
+## 1c - market_segment vs distribution channel
+
+
+#### arrival_date_day_of_month; validate; feb; 28?
+#### arrive between the 1st of July of 2015 and the 31st of August 2017
+
+#### visualizations 
