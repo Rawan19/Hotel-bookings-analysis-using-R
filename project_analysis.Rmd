@@ -1,0 +1,151 @@
+---
+title: "project_analysis"
+author: "RawanGalal"
+date: "3/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r imports}
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(janitor)
+library(plotly)
+
+```
+
+```{r read_file}
+data = read_csv("Data.csv")
+data
+```
+
+```{r}
+data_city <- data %>% filter(hotel== "City Hotel")
+data_resort <- data %>% filter(hotel == "Resort Hotel")
+tabyl(data_city$arrival_date_month)
+tabyl(data_resort$arrival_date_month)
+#data_resort 
+```
+
+# Q1: is there a certain market segment that increases no. of transactions? 
+```{r market_segment_vs_trans}
+data_resort %>% tabyl(market_segment)
+
+```
+## Understanding market segments in hotels:
+### 2. Corporate – These are the guests that stay at the hotel at discounted company rates. The discounted rates are available on a contract basis to corporate clients who bring in frequent business.
+### 3. Direct –This segment consists of direct bookings with the hotel done over phone calls or emails.
+### 5. Online TA: online third-party travel agencies that allow people to make reservations for various hotels through their platform. For example, Trivago, TripAdvisor,
+
+### 44% of market segment in resort hotels are online TA, while only .5% are complementary
+### insight: maintain the online TA>> turn them into loyal customers, and work on increasing the comp. cusstomers
+```{r}
+g <- ggplot(data, aes(market_segment))
+g + geom_bar()
+data
+```
+### compare demand in peak months(July and august, which correspond to 33% of the total demand ) for each segment. does it increase over years?
+
+
+```{r}
+#tabyl(data_resort$arrival_date_month)
+# cond: market segment
+#value: trxs
+# x: year buckets
+ data_resort %>% filter(arrival_date_month == "July" | arrival_date_month == "August") %>%
+ group_by(arrival_date_year, market_segment) %>%
+ summarise(number_of_transactions_in_7_and_8 = n() , market_segment = market_segment) %>%
+ ggplot( aes(factor(arrival_date_year), number_of_transactions_in_7_and_8 , fill = market_segment)) + 
+ geom_bar(stat="identity", position = "dodge") + 
+ scale_fill_brewer(palette = "Set1")
+
+```
+
+#### *insights* : 1. Online TA reached is increasing over years in peak months > recommendations: maintain their loyalty > points, discounts, through TA ...
+### 2. direct customers have a slight decrease over time 
+### 3. corporate is consistently low>> partner with more companies or cancel current contracts?
+### 4. offline TA is decreasing over time. a possible revenue threat? >> the decrease is small and doesn't worth investing in a marketing campaign; replace current offline marketing TA's?
+
+```{r}
+
+
+# data_resort %>%
+# group_by(arrival_date_year, market_segment ) %>%
+# summarise(number_of_transactions = n() , market_segment = market_segment, arrival_date_month = arrival_date_month) #%>%
+#ggplot(aes(x = arrival_date_month, y = number_of_transactions)) + geom_line(aes(colour = factor(arrival_date_year)))
+#
+#
+#
+#
+# data_resort %>% filter(arrival_date_year == 2017  & market_segment == "Online TA") %>%
+# group_by(arrival_date_month) %>%
+# summarise(number_of_transactions = n() ) %>%
+# ggplot( aes(arrival_date_month, number_of_transactions)) +
+#   geom_line()
+ 
+ 
+ 
+#  data_resort %>% filter(arrival_date_year == 2016 & market_segment == "Online TA") %>%
+# group_by(arrival_date_month) %>%
+# summarise(number_of_transactions = n() ) %>%
+#    plot_ly(x = ~arrival_date_month, y = ~ number_of_transactions, type = 'scatter', mode = 'lines')
+# 
+# 
+# data_resort %>% filter(arrival_date_year == 2017 & market_segment == "Online TA") %>%
+# group_by( arrival_date_month) %>%
+# summarise(number_of_transactions_17 = n() ) %>%
+#   
+#  plot_ly(x = ~arrival_date_month, y = ~number_of_transactions_17, type = 'scatter', mode = 'lines')
+
+ #+  plot_ly(x = ~arrival_date_month, y = ~ number_of_transactions, type = 'scatter', mode = 'lines')
+
+   
+ 
+
+```
+
+
+
+```{r}
+# cond: market segment
+#value: trxs
+# x: year buckets
+
+#data_resort %>% filter(arrival_date_year == 2016) %>%
+#group_by(arrival_date_month, market_segment) %>%
+#summarise(number_of_transactions = n() , market_segment = market_segment) %>%
+#ggplot( aes(factor(arrival_date_month), number_of_transactions, fill = market_segment)) + 
+#geom_bar(stat="identity", position = "dodge") + 
+#scale_fill_brewer(palette = "Set1")
+
+```
+
+### same analysis for city hotels
+```{r}
+tabyl(data_city$market_segment)
+
+```
+```{r}
+#tabyl(data_resort$arrival_date_month)
+# cond: market segment
+#value: trxs
+# x: year buckets
+ data_city%>% filter(arrival_date_month == "July" | arrival_date_month == "August") %>%
+ group_by(arrival_date_year, market_segment) %>%
+ summarise(number_of_transactions_in_7_and_8 = n() , market_segment = market_segment) %>%
+ ggplot( aes(factor(arrival_date_year), number_of_transactions_in_7_and_8 , fill = market_segment)) + 
+ geom_bar(stat="identity", position = "dodge") + 
+ scale_fill_brewer(palette = "Set1")
+
+```
+
+####Online TAs are again the dominant, with a continous increment> same reco. The pattern here deserves more attention; online TAs witnessed a rapid increase between 2015 and 2016 and a slight increase in 2017. why?
+### was there an applied policy in 2016 that needs to be implemented? what changed?
+#### direct is increaing, this propably means that more people started to hear about this hotel.
+#### offline TA/TO >> same reco.
+#### key factors that impact the booking: the channel through wich different market segments use to book.
